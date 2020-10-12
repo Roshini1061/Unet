@@ -1,4 +1,2 @@
-# Unet
-A demo of Unet to detect edges!  
-   
-- **[My CSDN Blog on how to use it](http://blog.csdn.net/awyyauqpmy/article/details/79290710)**
+# Optic disc segmentation-comparison of techniques
+A comparison of unet and multiresunet in image segmentation of optic disc from eye fundus images! 
