@@ -1,3 +1,5 @@
+from __future__ import print_function
+import tensorflow as tf
 import os 
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
@@ -7,35 +9,13 @@ from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as keras
 from data import *
-from __future__ import print_function
-import tensorflow as tf
-
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"  
-config=tf.ConfigProto()
-config.gpu_options.allow_growth=True
-session=tf.Session(config=config)
 from functools import partial
 from keras.models import Model
 from keras.layers import Conv2D, MaxPooling2D, UpSampling2D, Dropout,Input
 from keras.layers import concatenate, Conv2DTranspose, BatchNormalization
 from keras.optimizers import Adam
 from keras import backend as K
-import keras.backend.tensorflow_backend as KTF
-# import configurations
-import configs
-K.set_image_data_format('channels_last')  # TF dimension ordering in this code
 
-# init configs
-image_rows = configs.VOLUME_ROWS
-image_cols = configs.VOLUME_COLS
-image_depth = configs.VOLUME_DEPS
-num_classes = configs.NUM_CLASSES
-
-# patch extraction parameters
-patch_size = configs.PATCH_SIZE
-BASE = configs.BASE
-smooth = configs.SMOOTH
 
 # compute dsc
 def dice_coef(y_true, y_pred, smooth=1.):
@@ -92,14 +72,13 @@ class myUnet(object):
 		return imgs_train, imgs_mask_train, imgs_test
 # 载入数据
 	def get_unet(self):
-		deconv_ksize=3, 
+		deconv_ksize=(3,3) 
 		dropout=0.5
 		inputs = Input((self.img_rows, self.img_cols,1))
 		channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
 		#channel_axis=-1
 		metrics = dice_coef
 		include_label_wise_dice_coefficients = True;
-		inputs = Input((patch_size, patch_size, 1))
 		x01 = Conv2D(64, (3, 3), strides=(2, 2), padding='same', activation='relu', name='conv1')(inputs)
 		x02 = MaxPooling2D(pool_size=(3, 3), strides=(2, 2), name='pool1', padding='same')(x01)
 		x03 = fire_module(x02, fire_id=2, squeeze=16, expand=64)
@@ -146,14 +125,14 @@ class myUnet(object):
 		x = concatenate([up4, x01], axis=channel_axis)
 		x = Conv2D(64, (3, 3), strides=(1, 1), padding='same', activation='relu')(x)
 		x = UpSampling2D(size=(2, 2))(x)
-		x = Conv2D(num_classes, (1, 1), activation='softmax')(x)
+		x = Conv2D(2, (1, 1), activation='softmax')(x)
 
-		model = Model(input = inputs, output = conv10)
+		model = Model(inputs = inputs, outputs = x)
 		if not isinstance(metrics, list):
 			metrics = [metrics]
-
-		if include_label_wise_dice_coefficients and num_classes > 1:
-			label_wise_dice_metrics = [get_label_dice_coefficient_function(index) for index in range(num_classes)]
+    
+		if include_label_wise_dice_coefficients and 2 > 1:
+			label_wise_dice_metrics = [get_label_dice_coefficient_function(index) for index in range(2)]
 			if metrics:
 		    		metrics = metrics + label_wise_dice_metrics
 			else:
@@ -175,7 +154,7 @@ class myUnet(object):
 		print("got unet")
 		model_checkpoint = ModelCheckpoint('my_unet.hdf5', monitor='loss',verbose=1, save_best_only=True)
 		print('Fitting model...')
-		model.fit(imgs_train, imgs_mask_train, batch_size=2, nb_epoch=10, verbose=1,validation_split=0.2, shuffle=True, callbacks=[model_checkpoint])
+		model.fit(imgs_train, imgs_mask_train, batch_size=2, epochs=2, verbose=1,validation_split=0.2, shuffle=True, callbacks=[model_checkpoint])
 
 		print('predict test data')
 		imgs_mask_test = model.predict(imgs_test, batch_size=1, verbose=1)
